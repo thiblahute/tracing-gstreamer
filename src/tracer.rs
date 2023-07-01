@@ -2,22 +2,30 @@ use crate::callsite::GstCallsiteKind;
 use glib::subclass::basic;
 use gstreamer::{
     glib,
-    prelude::PadExtManual,
     prelude::*,
     subclass::prelude::*,
     traits::{GstObjectExt, PadExt},
     Buffer, FlowError, FlowSuccess, Object, Pad, Tracer,
 };
-use std::cell::RefCell;
+use std::{cell::RefCell, str::FromStr, sync::Mutex};
 use tracing::{span::Attributes, Callsite, Dispatch, Id};
+#[cfg(feature = "tracing-chrome")]
+use tracing_subscriber::prelude::*;
 
 struct EnteredSpan {
     id: Id,
     dispatch: Dispatch,
 }
 
+#[derive(Default)]
+struct State {
+    #[cfg(feature = "tracing-chrome")]
+    chrome_guard: Option<tracing_chrome::FlushGuard>,
+}
+
 pub struct TracingTracerPriv {
     span_stack: thread_local::ThreadLocal<RefCell<Vec<EnteredSpan>>>,
+    state: Mutex<State>,
 }
 
 struct SpanBuilder<'a> {
@@ -214,12 +222,65 @@ impl ObjectSubclass for TracingTracerPriv {
     fn new() -> Self {
         Self {
             span_stack: thread_local::ThreadLocal::new(),
+            state: Default::default(),
         }
     }
 }
 
 impl ObjectImpl for TracingTracerPriv {
     fn constructed(&self) {
+        if let Some(params) = self.obj().property::<Option<String>>("params") {
+            let tmp = format!("params,{}", params);
+            let structure = gstreamer::Structure::from_str(&tmp).unwrap_or_else(|e| {
+                eprintln!("Invalid params string: {:?}: {e:?}", tmp);
+                gstreamer::Structure::new_empty("params")
+            });
+
+            if let Ok(gst_logs_threshold) = structure.get::<&str>("gst-logs-threshold") {
+                eprintln!(
+                    "Integrating `{gst_logs_threshold}` GStreamer logs as part of our tracing"
+                );
+
+                crate::integrate_events();
+                gstreamer::debug_remove_default_log_function();
+                gstreamer::debug_set_threshold_from_string(gst_logs_threshold, true);
+            }
+
+            if let Ok(enable_fmt) = structure.get::<bool>("enable-fmt") {
+                if enable_fmt {
+                    eprintln!("Enabling fmt tracing");
+                    tracing_subscriber::fmt::init();
+                }
+            }
+
+            if let Ok(tracing_chrome) = structure.get::<bool>("tracing-chrome").map_or_else(
+                |_| structure.get::<gstreamer::Structure>("tracing-chrome"),
+                |v| {
+                    if v {
+                        Ok(gstreamer::Structure::new_empty("tracing-chrome"))
+                    } else {
+                        Err(gstreamer::structure::GetError::FieldNotFound {
+                            name: "tracing-chrome (or wrong type)",
+                        })
+                    }
+                },
+            ) {
+                #[cfg(feature = "tracing-chrome")]
+                {
+                    let (chrome_layer, guard) = tracing_chrome::ChromeLayerBuilder::new()
+                        .include_args(tracing_chrome.get::<bool>("include-args").unwrap_or(true))
+                        .build();
+
+                    self.state.lock().unwrap().chrome_guard = Some(guard);
+                    tracing_subscriber::registry().with(chrome_layer).init();
+                }
+                #[cfg(not(feature = "tracing-chrome"))]
+                {
+                    eprintln!("Trying to enable tracing-chrome, but the feature is not enabled.");
+                }
+            }
+        }
+
         self.parent_constructed();
         self.register_hook(TracerHook::PadPushPost);
         self.register_hook(TracerHook::PadPushPre);
