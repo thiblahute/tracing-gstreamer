@@ -229,6 +229,7 @@ impl ObjectSubclass for TracingTracerPriv {
 
 impl ObjectImpl for TracingTracerPriv {
     fn constructed(&self) {
+        eprintln!("TracingTracer constructed");
         if let Some(params) = self.obj().property::<Option<String>>("params") {
             let tmp = format!("params,{}", params);
             let structure = gstreamer::Structure::from_str(&tmp).unwrap_or_else(|e| {
@@ -282,21 +283,24 @@ impl ObjectImpl for TracingTracerPriv {
         }
 
         self.parent_constructed();
+        eprintln!("TracingTracer constructed done but not registering hooks");
         self.register_hook(TracerHook::PadPushPost);
         self.register_hook(TracerHook::PadPushPre);
-        self.register_hook(TracerHook::PadPushListPost);
-        self.register_hook(TracerHook::PadPushListPre);
-        self.register_hook(TracerHook::PadQueryPost);
-        self.register_hook(TracerHook::PadQueryPre);
-        self.register_hook(TracerHook::PadPushEventPost);
-        self.register_hook(TracerHook::PadPushEventPre);
-        self.register_hook(TracerHook::PadPullRangePost);
-        self.register_hook(TracerHook::PadPullRangePre);
+        // self.register_hook(TracerHook::PadPushListPost);
+        // self.register_hook(TracerHook::PadPushListPre);
+        // self.register_hook(TracerHook::PadQueryPost);
+        // self.register_hook(TracerHook::PadQueryPre);
+        // self.register_hook(TracerHook::PadPushEventPost);
+        // self.register_hook(TracerHook::PadPushEventPre);
+        // self.register_hook(TracerHook::PadPullRangePost);
+        // self.register_hook(TracerHook::PadPullRangePre);
         self.register_hook(TracerHook::ElementChangeStatePre);
         self.register_hook(TracerHook::ElementChangeStatePost);
 
-        self.register_hook(TracerHook::ElementPostMessagePre);
-        self.register_hook(TracerHook::ElementPostMessagePost);
+        // FAIL {
+        // self.register_hook(TracerHook::ElementPostMessagePre);
+        // self.register_hook(TracerHook::ElementPostMessagePost);
+        // }
 
         #[cfg(feature = "v1_22")]
         {
