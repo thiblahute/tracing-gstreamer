@@ -17,15 +17,8 @@ struct EnteredSpan {
     dispatch: Dispatch,
 }
 
-#[derive(Default)]
-struct State {
-    #[cfg(feature = "tracing-chrome")]
-    chrome_guard: Option<tracing_chrome::FlushGuard>,
-}
-
 pub struct TracingTracerPriv {
     span_stack: thread_local::ThreadLocal<RefCell<Vec<EnteredSpan>>>,
-    state: Mutex<State>,
 }
 
 struct SpanBuilder<'a> {
@@ -214,16 +207,20 @@ glib::wrapper! {
 impl ObjectSubclass for TracingTracerPriv {
     const NAME: &'static str = "TracingTracer";
     type Type = TracingTracer;
-    type Class = basic::ClassStruct<Self>;
-    type Instance = basic::InstanceStruct<Self>;
     type ParentType = Tracer;
     type Interfaces = ();
 
     fn new() -> Self {
         Self {
             span_stack: thread_local::ThreadLocal::new(),
-            state: Default::default(),
         }
+    }
+}
+pub(crate) trait TracingTracerImpl: TracerImpl {}
+
+unsafe impl<T: TracingTracerImpl> IsSubclassable<T> for TracingTracer {
+    fn class_init(class: &mut glib::Class<Self>) {
+        Self::parent_class_init::<T>(class);
     }
 }
 
@@ -231,6 +228,7 @@ impl ObjectImpl for TracingTracerPriv {
     fn constructed(&self) {
         if let Some(params) = self.obj().property::<Option<String>>("params") {
             let tmp = format!("params,{}", params);
+            eprintln!("params: {:?}", tmp);
             let structure = gstreamer::Structure::from_str(&tmp).unwrap_or_else(|e| {
                 eprintln!("Invalid params string: {:?}: {e:?}", tmp);
                 gstreamer::Structure::new_empty("params")
@@ -250,33 +248,6 @@ impl ObjectImpl for TracingTracerPriv {
                 if enable_fmt {
                     eprintln!("Enabling fmt tracing");
                     tracing_subscriber::fmt::init();
-                }
-            }
-
-            if let Ok(tracing_chrome) = structure.get::<bool>("tracing-chrome").map_or_else(
-                |_| structure.get::<gstreamer::Structure>("tracing-chrome"),
-                |v| {
-                    if v {
-                        Ok(gstreamer::Structure::new_empty("tracing-chrome"))
-                    } else {
-                        Err(gstreamer::structure::GetError::FieldNotFound {
-                            name: "tracing-chrome (or wrong type)",
-                        })
-                    }
-                },
-            ) {
-                #[cfg(feature = "tracing-chrome")]
-                {
-                    let (chrome_layer, guard) = tracing_chrome::ChromeLayerBuilder::new()
-                        .include_args(tracing_chrome.get::<bool>("include-args").unwrap_or(true))
-                        .build();
-
-                    self.state.lock().unwrap().chrome_guard = Some(guard);
-                    tracing_subscriber::registry().with(chrome_layer).init();
-                }
-                #[cfg(not(feature = "tracing-chrome"))]
-                {
-                    eprintln!("Trying to enable tracing-chrome, but the feature is not enabled.");
                 }
             }
         }

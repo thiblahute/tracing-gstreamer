@@ -22,6 +22,7 @@ mod macros;
 mod callsite;
 mod log;
 mod tracer;
+mod chrometracer;
 
 /// The top-level target component of the events and spans dispatched to `tracing` by this library.
 ///
@@ -155,6 +156,12 @@ pub fn register(p: Option<&gstreamer::Plugin>) -> Result<(), gstreamer::glib::Bo
         p,
         "rusttracing",
         <tracer::TracingTracer as gstreamer::glib::StaticType>::static_type(),
+    )?;
+
+    gstreamer::Tracer::register(
+        p,
+        "chrometracing",
+        <chrometracer::ChromeTracer as gstreamer::glib::StaticType>::static_type(),
     )?;
     Ok(())
 }
