@@ -3,7 +3,7 @@ use gstreamer::{glib, subclass::prelude::*};
 use crate::tracer::{TracingTracer, TracingTracerImpl};
 
 #[derive(Default)]
-pub struct FmtTracer { }
+pub struct FmtTracer {}
 
 #[glib::object_subclass]
 impl ObjectSubclass for FmtTracer {

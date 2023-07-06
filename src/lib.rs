@@ -20,10 +20,10 @@ use tracing_core::field::Value;
 #[macro_use]
 mod macros;
 mod callsite;
-mod log;
-mod tracer;
 mod chrometracer;
 mod fmttracer;
+mod log;
+mod tracer;
 
 /// The top-level target component of the events and spans dispatched to `tracing` by this library.
 ///

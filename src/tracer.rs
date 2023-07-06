@@ -231,14 +231,15 @@ impl ObjectImpl for TracingTracerPriv {
                 gstreamer::Structure::new_empty("params")
             });
 
-            if let Ok(gst_logs_threshold) = structure.get::<&str>("gst-logs-threshold") {
-                eprintln!(
-                    "Integrating `{gst_logs_threshold}` GStreamer logs as part of our tracing"
-                );
+            if let Ok(gst_logs_level) = structure
+                .get::<String>("log-level")
+                .or_else(|_| structure.get::<i32>("log-level").map(|l| l.to_string()))
+            {
+                eprintln!("Integrating `{gst_logs_level}` GStreamer logs as part of our tracing");
 
                 crate::integrate_events();
                 gstreamer::debug_remove_default_log_function();
-                gstreamer::debug_set_threshold_from_string(gst_logs_threshold, true);
+                gstreamer::debug_set_threshold_from_string(&gst_logs_level, true);
             }
         }
 

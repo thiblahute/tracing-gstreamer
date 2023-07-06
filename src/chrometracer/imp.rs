@@ -1,6 +1,6 @@
-use std::sync::Mutex;
+use gstreamer::{glib, prelude::*, subclass::prelude::*};
 use std::str::FromStr;
-use gstreamer::{glib, subclass::prelude::*, prelude::*};
+use std::sync::Mutex;
 use tracing_subscriber::prelude::*;
 
 use crate::tracer::{TracingTracer, TracingTracerImpl};
@@ -9,7 +9,6 @@ use crate::tracer::{TracingTracer, TracingTracerImpl};
 struct State {
     chrome_guard: Option<tracing_chrome::FlushGuard>,
 }
-
 
 #[derive(Default)]
 pub struct ChromeTracer {
@@ -26,15 +25,17 @@ impl ObjectSubclass for ChromeTracer {
 
 impl ObjectImpl for ChromeTracer {
     fn constructed(&self) {
-
         let mut include_args = true;
 
         if let Some(params) = self.obj().property::<Option<String>>("params") {
             let tmp = format!("params,{}", params);
-            include_args = gstreamer::Structure::from_str(&tmp).unwrap_or_else(|e| {
-                eprintln!("Invalid params string: {:?}: {e:?}", tmp);
-                gstreamer::Structure::new_empty("params")
-            }).get::<bool>("include-args").unwrap_or(true)
+            include_args = gstreamer::Structure::from_str(&tmp)
+                .unwrap_or_else(|e| {
+                    eprintln!("Invalid params string: {:?}: {e:?}", tmp);
+                    gstreamer::Structure::new_empty("params")
+                })
+                .get::<bool>("include-args")
+                .unwrap_or(true)
         }
 
         let (chrome_layer, guard) = tracing_chrome::ChromeLayerBuilder::new()

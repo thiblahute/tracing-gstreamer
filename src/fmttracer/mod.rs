@@ -8,4 +8,3 @@ glib::wrapper! {
     pub struct FmtTracer(ObjectSubclass<imp::FmtTracer>)
        @extends TracingTracer, gstreamer::Tracer, gstreamer::Object;
 }
-

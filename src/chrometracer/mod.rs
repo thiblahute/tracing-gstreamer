@@ -8,4 +8,3 @@ glib::wrapper! {
     pub struct ChromeTracer(ObjectSubclass<imp::ChromeTracer>)
        @extends TracingTracer, gstreamer::Tracer, gstreamer::Object;
 }
-
