@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 use std::str::FromStr;
-use gstreamer::{glib::{self, subclass::{prelude::*, basic}}, subclass::prelude::*, prelude::*};
+use gstreamer::{glib, subclass::prelude::*, prelude::*};
 use tracing_subscriber::prelude::*;
 
 use crate::tracer::{TracingTracer, TracingTracerImpl};

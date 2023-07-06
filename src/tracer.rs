@@ -1,5 +1,4 @@
 use crate::callsite::GstCallsiteKind;
-use glib::subclass::basic;
 use gstreamer::{
     glib,
     prelude::*,
@@ -7,10 +6,8 @@ use gstreamer::{
     traits::{GstObjectExt, PadExt},
     Buffer, FlowError, FlowSuccess, Object, Pad, Tracer,
 };
-use std::{cell::RefCell, str::FromStr, sync::Mutex};
+use std::{cell::RefCell, str::FromStr};
 use tracing::{span::Attributes, Callsite, Dispatch, Id};
-#[cfg(feature = "tracing-chrome")]
-use tracing_subscriber::prelude::*;
 
 struct EnteredSpan {
     id: Id,
@@ -242,13 +239,6 @@ impl ObjectImpl for TracingTracerPriv {
                 crate::integrate_events();
                 gstreamer::debug_remove_default_log_function();
                 gstreamer::debug_set_threshold_from_string(gst_logs_threshold, true);
-            }
-
-            if let Ok(enable_fmt) = structure.get::<bool>("enable-fmt") {
-                if enable_fmt {
-                    eprintln!("Enabling fmt tracing");
-                    tracing_subscriber::fmt::init();
-                }
             }
         }
 

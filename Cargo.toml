@@ -35,5 +35,3 @@ rustdoc-args = ["--cfg", "tracing_gstreamer_docs"]
 
 [features]
 v1_22 = ["gstreamer/v1_22"]
-default = ["tracing-chrome"]
-tracing-chrome = []
